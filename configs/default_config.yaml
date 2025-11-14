@@ -1,0 +1,29 @@
+transpilation:
+  source_language: python
+  target_language: python
+  runtime_adapter: null
+  layout:
+    output:
+      kind: file
+      path: transpiled_output.py
+  agents:
+    parallel_workers: 1
+    max_retries: 3
+    temperature_range: [0.2, 0.6]
+  llm:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.25
+    max_tokens: 1024
+    streaming:
+      enabled: false
+      store_responses: false
+      timeout_s: 120
+      log_root: .transpile_streams
+      mode: file
+      worker_mode: file
+  verification:
+    strategy: execution_match
+    enabled: true
+    test_inputs:
+      - {}

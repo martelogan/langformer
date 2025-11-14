@@ -1,0 +1,20 @@
+{# Default Langformer guideline snippet. #}
+
+{% if guidelines %}
+Guidelines to honor for this transpilation:
+{% for note in guidelines %}
+- {{ note }}
+{% endfor %}
+{% endif %}
+
+{% if style_targets %}
+Style and quality targets:
+{% for note in style_targets %}
+- {{ note }}
+{% endfor %}
+{% endif %}
+
+{% if plugin_prompt %}
+Language- or domain-specific hints:
+{{ plugin_prompt }}
+{% endif %}

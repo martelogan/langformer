@@ -1,0 +1,51 @@
+transpilation:
+  source_language: python
+  target_language: python
+  layout:
+    output:
+      kind: file
+      path: kernel_agent_delegate_out.py
+  runtime:
+    enabled: true
+    run_root: .transpile_runs
+  planner:
+    kind: kernel_agent_auto
+    enforce: true
+    force_delegate: false
+    router:
+      model: gpt-5           # any Fuser-supported LLM
+      high_reasoning: true   # matches Fuser defaults
+      temperature: 0.2
+      max_tokens: 700
+      extract_model: gpt-5          # optional: router tuning hints
+      dispatch_model: o4-mini
+      compose_model: o4-mini
+  plugins:
+    paths:
+      - ../examples
+    modules:
+      - examples.kernel_agent_delegate
+  agents:
+    parallel_workers: 1
+  verification:
+    strategy: custom_oracle
+    oracle:
+      type: kernel_agent_runner
+      run_root: .transpile_runs/kernel_agent_oracle
+      timeout_s: 1200
+      isolated: true
+      deny_network: true
+examples:
+  kernel_agent_delegate:
+    mode: stub
+    pipeline:
+      extract_model: gpt-5
+      dispatch_model: null
+      compose_model: o4-mini
+      dispatch_jobs: auto
+      workers: 4
+      max_iters: 5
+      llm_timeout_s: 1200
+      run_timeout_s: 1200
+      verify: true
+      compose_max_iters: 5

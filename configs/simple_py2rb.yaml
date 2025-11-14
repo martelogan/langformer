@@ -1,0 +1,44 @@
+transpilation:
+  source_language: python
+  target_language: ruby
+  layout:
+    input:
+      path: examples/simple_py2rb_transpiler/inputs/sample_module.py
+    output:
+      kind: directory
+      path: examples/simple_py2rb_transpiler/outputs/generated
+      extension: rb
+  feature_spec:
+    pure_functions: true
+    ruby_entry_module: Report
+    ruby_methods:
+      - normalize_scores
+      - generate_report
+  agents:
+    max_retries: 4
+    parallel_workers: 1
+    temperature_range: [0.2, 0.7]
+  llm:
+    # provider: echo
+    provider: openai
+    model: gpt-4o-mini
+  verification:
+    strategy: custom_oracle
+    oracle:
+      type: simple_py2rb
+      cases:
+        - scores: [1, 4, 7, 10]
+          min_size: 3
+          metrics: {"alice": 3, "bob": 2, "carol": 5}
+          threshold: 3
+          fmt: plain
+        - scores: [0, 5, null, 15]
+          min_size: 4
+          metrics: {"zeus": 4, "ares": 1}
+          threshold: 2
+          fmt: json
+  plugins:
+    paths:
+      - ../examples
+    modules:
+      - examples.simple_py2rb_transpiler

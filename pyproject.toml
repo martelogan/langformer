@@ -1,0 +1,99 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "langformer"
+version = "0.1.0"
+description = "Agentic, language-agnostic transpilation framework"
+readme = "README.md"
+requires-python = ">=3.8,<3.13"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Logan Martel", email = "logan.martel.dev@gmail.com"},
+    {name = "PyTorch Labs"},
+]
+keywords = ["transpiler", "orchestration", "llm", "ai", "agents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "openai",
+    "anthropic",
+    "jinja2",
+    "python-dotenv",
+    "gradio",
+    "requests",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov",
+    "ruff>=0.6.0",
+    "pyright>=1.1.386",
+    "pylint>=3.2.0",
+]
+
+[project.scripts]
+langform = "langformer.cli:main"
+
+[project.urls]
+"Homepage" = "https://github.com/martelogan/langformer"
+"Bug Tracker" = "https://github.com/martelogan/langformer/issues"
+"Repository" = "https://github.com/martelogan/langformer"
+
+[tool.setuptools.packages.find]
+include = ["langformer*"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"langformer" = ["prompts/templates/*.j2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "examples/tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --cov=langformer --cov-report=term-missing"
+
+[tool.ruff]
+line-length = 79
+extend-exclude = [
+    "LICENSE",
+    "external",
+    ".fuse",
+    "compose_out",
+    "coverage_*",
+    "compose_out_auto",
+    "examples/shared_dependencies/",
+]
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["langformer"]
+combine-as-imports = true
+force-single-line = false
+lines-between-types = 1
+
+[tool.pyright]
+include = ["langformer", "examples/simple_py2rb_transpiler"]
+exclude = ["examples/kernel_agent_delegate", "examples/shared_dependencies", "tests"]
+typeCheckingMode = "basic"
+pythonVersion = "3.11"
+reportMissingTypeStubs = false
+extraPaths = ["."]

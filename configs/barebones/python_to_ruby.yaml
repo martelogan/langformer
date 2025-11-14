@@ -1,0 +1,21 @@
+transpilation:
+  source_language: python
+  target_language: ruby
+  layout:
+    output:
+      kind: file
+      path: transpiled/main.rb
+  agents:
+    parallel_workers: 1
+    max_retries: 3
+    temperature_range: [0.2, 0.6]
+  llm:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0.3
+    max_tokens: 1024
+  verification:
+    strategy: custom_oracle
+    oracle:
+      type: contains_keyword
+      keyword: "puts"

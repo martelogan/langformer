@@ -1,0 +1,19 @@
+"""Project-wide constants to avoid bespoke string literals."""
+
+STRATEGY_EXACT_MATCH = "exact_match"
+STRATEGY_STRUCTURAL_MATCH = "structural_match"
+STRATEGY_EXECUTION_MATCH = "execution_match"
+STRATEGY_CUSTOM_ORACLE = "custom_oracle"
+ARTIFACT_STAGE_ANALYZER = "analyzer"
+ARTIFACT_STAGE_TRANSPILER = "transpiler"
+ARTIFACT_STAGE_VERIFIER = "verifier"
+
+__all__ = [
+    "STRATEGY_EXACT_MATCH",
+    "STRATEGY_STRUCTURAL_MATCH",
+    "STRATEGY_EXECUTION_MATCH",
+    "STRATEGY_CUSTOM_ORACLE",
+    "ARTIFACT_STAGE_ANALYZER",
+    "ARTIFACT_STAGE_TRANSPILER",
+    "ARTIFACT_STAGE_VERIFIER",
+]

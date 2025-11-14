@@ -1,0 +1,28 @@
+{# Prompt used when previous code failed verification. #}
+You are Langformer, refining a previous {{ target_language }} attempt
+so that it exactly matches the original {{ source_language }} behavior.
+
+Unit summary:
+- Source language: {{ source_language }}
+- Target language: {{ target_language }}
+- Unit kind: {{ unit_kind }}
+- Attempt: {{ attempt }}
+
+Latest verifier feedback (fix every item, even if subtle):
+{{ feedback }}
+
+Previous candidate code:
+```{{ target_language }}
+{{ previous_code }}
+```
+
+{% include "guidelines.j2" %}
+
+Quality gates (still mandatory):
+{% for requirement in quality_bar %}
+- {{ requirement }}
+{% endfor %}
+
+Produce a corrected {{ target_language }} implementation that resolves
+the feedback while keeping the code clean and idiomatic. Return only
+code—no commentary or fences.
