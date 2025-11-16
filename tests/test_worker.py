@@ -56,7 +56,7 @@ def test_run_worker_uses_event_stream(tmp_path: Path, monkeypatch) -> None:
             "feature_spec": {},
         },
         "llm": {"provider": "echo"},
-        "prompt_paths": ["langformer/prompts/templates"],
+        "prompt_paths": ["langformer/prompting/templates"],
         "agent": {"max_retries": 1, "temperature_range": (0.2, 0.6)},
         "verification": {"strategy": "exact_match"},
         "events": {

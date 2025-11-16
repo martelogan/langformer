@@ -71,7 +71,7 @@ Langformer reads `transpilation.*` settings from the YAML file and lets CLI flag
 | Capability | Description |
 | --- | --- |
 | **Language-agnostic core** | Lightweight Python/Ruby/Rust plugins ship out of the box; register your own with `register_language_plugin`. |
-| **Prompt templating** | Jinja2 templates (`langformer/prompts/templates/*.j2`) plus a prompt-fill registry make all injected instructions discoverable and overridable. |
+| **Prompt templating** | Jinja2 templates (`langformer/prompting/templates/*.j2`) plus a prompt-fill registry make all injected instructions discoverable and overridable. |
 | **LLM provider abstraction** | OpenAI, Anthropic, Relay, or deterministic `EchoProvider`—plus support for custom base URLs, streaming, and worker fan-out. |
 | **Verification strategies** | Exact, structural, execution (sandbox runners), or custom oracles registered via `OracleRegistry`. Generated tests land in `VerifyResult.feedback.tests`. |
 | **Artifact manager** | Stage-specific directories (`analyzer/`, `transpiler/`, `verifier/`) with manifests mirrored into `candidate.metadata`. |
@@ -149,7 +149,7 @@ transpilation:
 **Tips**
 
 - All keys under `transpilation.llm` and `transpilation.agents` can be overridden via CLI flags (`--llm-provider`, `--model`, `--planner`, etc.).
-- Use `prompt_dir` to shadow built-in templates (Langformer searches override dirs before `langformer/prompts/templates`).
+- Use `prompt_dir` to shadow built-in templates (Langformer searches override dirs before `langformer/prompting/templates`).
 - Store custom planners, oracles, or prompt fills in a package and list it under `plugins.modules`.
 
 ---
@@ -167,7 +167,7 @@ transpilation:
 
 ### Prompt templates
 
-Langformer renders all LLM prompts from Jinja2 templates under `langformer/prompts/templates/`:
+Langformer renders all LLM prompts from Jinja2 templates under `langformer/prompting/templates/`:
 
 - `transpile.j2` – initial generation prompt (includes common guidelines).
 - `refine.j2` – refinement prompt used when verification fails.
@@ -176,10 +176,10 @@ Langformer renders all LLM prompts from Jinja2 templates under `langformer/promp
 
 The `PromptManager` automatically layers user overrides on top of the built-in templates. To customize prompts, place your `.j2` files in a directory and set `transpilation.agents.prompt_dir` to that path. Templates with matching filenames in your directory shadow the defaults, while missing files fall back to the packaged versions. You can inspect the active library via `PromptManager.list_templates()` or by reading `LLMConfig.prompt_paths`.
 
-Prompt variables (guidelines, style targets, plugin hints, layout/build summaries, etc.) are populated via a registry of “prompt fill” providers at `langformer.prompts.fills.prompt_fills`. Each provider receives a `PromptFillContext` describing the unit, integration context, attempt number, and source/target plugins, and returns a `dict` merged into the template payload. You can register or unregister additional fills at runtime—for example:
+Prompt variables (guidelines, style targets, plugin hints, layout/build summaries, etc.) are populated via a registry of “prompt fill” providers at `langformer.prompting.fills.prompt_fills`. Each provider receives a `PromptFillContext` describing the unit, integration context, attempt number, and source/target plugins, and returns a `dict` merged into the template payload. You can register or unregister additional fills at runtime—for example:
 
 ```python
-from langformer.prompts.fills import prompt_fills, PromptFillContext
+from langformer.prompting.fills import prompt_fills, PromptFillContext
 
 def add_custom_flag(ctx: PromptFillContext) -> dict[str, object]:
     return {"custom_guidance": f"Prefer {ctx.target_language} 3.12 features"}
@@ -192,7 +192,7 @@ Because every prompt input flows through this registry, the set of instructions 
 Need to tweak hints for a whole language or a specific translation pair without writing a full fill function? Use the helper utilities:
 
 ```python
-from langformer.prompts.fills import register_target_language_hints, register_translation_hints
+from langformer.prompting.fills import register_target_language_hints, register_translation_hints
 
 register_target_language_hints("julia", ["Prefer multiple dispatch and pure functions."])
 register_translation_hints("python", "julia", ["Map dataclasses to mutable structs when mutations are required."])
@@ -206,7 +206,7 @@ Register additional languages (or override the built-ins) by calling `langformer
 
 ```python
 from langformer.languages import LanguagePlugin, register_language_plugin
-from langformer.prompts.fills import register_target_language_hints
+from langformer.prompting.fills import register_target_language_hints
 
 class SwiftLanguagePlugin(LanguagePlugin):
     language_name = "swift"

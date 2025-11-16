@@ -6,7 +6,7 @@ import json
 
 from typing import Dict, Iterable, Tuple
 
-from langformer.prompts.fills.registry import (
+from langformer.prompting.fills.registry import (
     PromptFillContext,
     PromptFillRegistry,
 )

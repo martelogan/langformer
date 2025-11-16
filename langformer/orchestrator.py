@@ -35,7 +35,7 @@ from langformer.llm.providers import LLMProvider, load_provider
 from langformer.logging import EventAdapter, StreamDispatcher
 from langformer.orchestration.context_builder import ContextBuilder
 from langformer.orchestration.target_integrator import TargetIntegrator
-from langformer.prompts.manager import PromptManager
+from langformer.prompting.manager import PromptManager
 from langformer.runtime import RunSession
 from langformer.types import (
     CandidatePatchSet,
@@ -58,7 +58,7 @@ from langformer.worker.payload import (
 from langformer.worker.transpile_worker import run_worker
 
 DEFAULT_CONFIG_PATH = Path("configs/default_config.yaml")
-DEFAULT_PROMPT_DIR = Path("langformer/prompts/templates")
+DEFAULT_PROMPT_DIR = Path("langformer/prompting/templates")
 _DOTENV_LOADED = False
 LOGGER = logging.getLogger(__name__)
 

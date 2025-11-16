@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from langformer.llm.providers import LLMProvider
-from langformer.prompts.manager import PromptManager
+from langformer.prompting.manager import PromptManager
 
 if TYPE_CHECKING:  # pragma: no cover
     from langformer.artifacts import ArtifactManager

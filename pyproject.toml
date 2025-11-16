@@ -62,7 +62,7 @@ include = ["langformer*"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-"langformer" = ["prompts/templates/*.j2"]
+"langformer" = ["prompting/templates/*.j2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "examples/tests"]

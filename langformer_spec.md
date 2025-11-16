@@ -156,10 +156,10 @@ CLI flags (`langform …`) override YAML keys (e.g., `--llm-provider`, `--model`
 
 ## 6. Prompt System
 
-1. **Templates** live in `langformer/prompts/templates/*.j2` (`transpile`,
+1. **Templates** live in `langformer/prompting/templates/*.j2` (`transpile`,
    `refine`, `guidelines`, `tests`). Users can add override directories via
    `transpilation.agents.prompt_dir`; `PromptManager` enforces precedence.
-2. **Prompt fills** come from `langformer.prompts.fills.prompt_fills`, a
+2. **Prompt fills** come from `langformer.prompting.fills.prompt_fills`, a
    registry of callables receiving `PromptFillContext` (unit, integration
    context, attempt, feedback, previous code, source/target plugin handles).
 3. **Extensibility**: applications register extra payload providers (e.g.,

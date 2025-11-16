@@ -19,7 +19,7 @@ from typing import (
 from langformer.agents.base import LLMConfig
 from langformer.exceptions import TranspilationAttemptError
 from langformer.languages.base import LanguagePlugin
-from langformer.prompts.fills import PromptFillContext, prompt_fills
+from langformer.prompting.fills import PromptFillContext, prompt_fills
 from langformer.runtime.parallel import ParallelExplorer
 from langformer.types import (
     CandidatePatchSet,

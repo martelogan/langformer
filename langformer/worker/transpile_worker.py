@@ -16,7 +16,7 @@ from langformer.exceptions import TranspilationAttemptError
 from langformer.languages import LANGUAGE_PLUGINS
 from langformer.llm.providers import load_provider
 from langformer.logging import EventAdapter, StreamDispatcher
-from langformer.prompts.manager import PromptManager
+from langformer.prompting.manager import PromptManager
 from langformer.runtime.dedup import CodeDeduplicator
 from langformer.types import IntegrationContext, LayoutPlan, TranspileUnit
 from langformer.verification.factory import build_verification_strategy

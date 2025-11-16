@@ -10,7 +10,7 @@ import pytest
 
 from langformer.agents.base import LLMConfig
 from langformer.llm.providers import load_provider
-from langformer.prompts.manager import PromptManager
+from langformer.prompting.manager import PromptManager
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -21,7 +21,7 @@ if str(ROOT) not in sys.path:
 def llm_config() -> LLMConfig:
     """Return a reusable echo-provider config for unit tests."""
 
-    prompt_dir = Path("langformer/prompts/templates")
+    prompt_dir = Path("langformer/prompting/templates")
     prompt_manager = PromptManager(prompt_dir)
     provider = load_provider({"provider": "echo"})
     return LLMConfig(

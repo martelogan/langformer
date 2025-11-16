@@ -1,11 +1,11 @@
 """Prompt fill registry exposed for customization."""
 
-from langformer.prompts.fills.defaults import (
+from langformer.prompting.fills.defaults import (
     register_default_fills,
     register_target_language_hints,
     register_translation_hints,
 )
-from langformer.prompts.fills.registry import (
+from langformer.prompting.fills.registry import (
     PromptFillContext,
     PromptFillRegistry,
 )

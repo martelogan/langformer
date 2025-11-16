@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from langformer.prompts.fills import PromptFillContext, prompt_fills
-from langformer.prompts.manager import PromptManager
+from langformer.prompting.fills import PromptFillContext, prompt_fills
+from langformer.prompting.manager import PromptManager
 from langformer.types import IntegrationContext, TranspileUnit
 
 
@@ -33,7 +33,7 @@ def test_prompt_manager_uses_override_when_available(tmp_path: Path) -> None:
     )
 
     manager = PromptManager(
-        Path("langformer/prompts/templates"), extra_dirs=[override_dir]
+        Path("langformer/prompting/templates"), extra_dirs=[override_dir]
     )
     rendered = manager.render("transpile.j2", **_base_context())
     assert rendered.strip() == "override attempt=1"
@@ -47,7 +47,7 @@ def test_prompt_manager_falls_back_to_defaults(tmp_path: Path) -> None:
     )
 
     manager = PromptManager(
-        Path("langformer/prompts/templates"), extra_dirs=[override_dir]
+        Path("langformer/prompting/templates"), extra_dirs=[override_dir]
     )
     templates = manager.list_templates()
     assert "transpile.j2" in templates

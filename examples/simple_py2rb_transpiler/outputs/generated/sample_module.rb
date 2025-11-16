@@ -5,7 +5,7 @@ module Report
     """Normalize a sequence by shifting values relative to the first element."""
     
     cleaned = values.compact.map(&:to_i)
-    return Array.new(min_size, 0) if cleaned.length < min_size
+    return [0] * min_size if cleaned.length < min_size
     
     base = cleaned.first
     cleaned.map { |value| value - base }
@@ -16,7 +16,7 @@ module Report
     
     winners = metrics.select { |_, score| score >= threshold }.keys.sort
     if fmt == "json"
-      return JSON.dump({ winners: winners, count: winners.length })
+      return JSON.generate({ winners: winners, count: winners.length })
     end
 
     body = winners.empty? ? "n/a" : winners.join(", ")

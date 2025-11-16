@@ -12,7 +12,7 @@ from langformer.agents.transpiler import LLMTranspilerAgent
 from langformer.exceptions import TranspilationAttemptError
 from langformer.languages.python import LightweightPythonLanguagePlugin
 from langformer.llm.providers import LLMProvider
-from langformer.prompts.manager import PromptManager
+from langformer.prompting.manager import PromptManager
 from langformer.types import (
     IntegrationContext,
     LayoutPlan,
@@ -20,7 +20,7 @@ from langformer.types import (
     VerifyResult,
 )
 
-PROMPT_DIR = Path("langformer/prompts/templates")
+PROMPT_DIR = Path("langformer/prompting/templates")
 
 
 def _llm_config_for(provider: LLMProvider) -> LLMConfig:
