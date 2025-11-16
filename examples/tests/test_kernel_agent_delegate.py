@@ -1,5 +1,12 @@
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip(
+    "Fuser.auto_agent",
+    reason="KernelAgent delegate tests require the Fuser package.",
+)
+
 from examples.kernel_agent_delegate import (
     KernelAgentAutoPlanner,
     delegate as delegate_mod,
