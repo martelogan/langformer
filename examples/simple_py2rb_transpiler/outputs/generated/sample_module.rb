@@ -6,7 +6,7 @@ module Report
     
     cleaned = values.compact.map(&:to_i)
     return [0] * min_size if cleaned.length < min_size
-    
+
     base = cleaned.first
     cleaned.map { |value| value - base }
   end

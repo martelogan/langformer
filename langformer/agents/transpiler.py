@@ -11,6 +11,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Mapping,
     Optional,
     Protocol,
     runtime_checkable,
@@ -19,7 +20,10 @@ from typing import (
 from langformer.agents.base import LLMConfig
 from langformer.exceptions import TranspilationAttemptError
 from langformer.languages.base import LanguagePlugin
+from langformer.prompting.backends.base import PromptRenderer
+from langformer.prompting.backends.jinja_backend import JinjaPromptRenderer
 from langformer.prompting.fills import PromptFillContext, prompt_fills
+from langformer.prompting.types import PromptTaskResult, PromptTaskSpec
 from langformer.runtime.parallel import ParallelExplorer
 from langformer.types import (
     CandidatePatchSet,
@@ -68,6 +72,8 @@ class LLMTranspilerAgent:
         parallel_workers: int = 1,
         temperature_range: tuple[float, float] = (0.2, 0.6),
         event_adapter_factory: Optional[EventAdapterFactory] = None,
+        prompt_renderer: PromptRenderer | None = None,
+        prompt_template_map: Optional[Mapping[str, str]] = None,
     ) -> None:
         self._source_plugin = source_plugin
         self._target_plugin = target_plugin
@@ -105,6 +111,16 @@ class LLMTranspilerAgent:
             )
         self._explorer = ParallelExplorer()
         self._event_factory = event_adapter_factory
+        default_template_map = {
+            "transpile_initial": "transpile.j2",
+            "transpile_refine": "refine.j2",
+        }
+        if prompt_template_map:
+            default_template_map.update(prompt_template_map)
+        self._prompt_renderer = prompt_renderer or JinjaPromptRenderer(
+            self._prompt_manager,
+            template_map=default_template_map,
+        )
 
     def transpile(
         self,
@@ -182,9 +198,11 @@ class LLMTranspilerAgent:
                 raise TranspilationAttemptError(
                     "Transpiler canceled by orchestrator"
                 )
-            prompt = self._build_prompt(
+            task_spec = self._build_prompt_spec(
                 unit, ctx, feedback, attempt, previous_code
             )
+            rendered_prompt = self._prompt_renderer.render(task_spec)
+            prompt = rendered_prompt.message.content
             stream_details: Optional[dict[str, Any]] = None
             adapter_instance: Optional[Any] = None
             if event_factory is not None:
@@ -214,15 +232,23 @@ class LLMTranspilerAgent:
                 except Exception as exc:  # pragma: no cover
                     self._logger.warning("Event streaming failed: %s", exc)
                     stream_details = {"error": str(exc)}
-            code = ""
+            task_result: PromptTaskResult | None = None
             if stream_details is not None:
-                code = stream_details.get("output_text", "") or ""
-            if not code:
+                task_result = PromptTaskResult(
+                    output_type="code",
+                    output=stream_details.get("output_text", "") or "",
+                    metadata={
+                        "source": "event_stream",
+                        "response_id": stream_details.get("response_id"),
+                    },
+                )
+            if task_result is None or not task_result.output:
+                temperature_value = temp or self._pick_temperature(attempt)
                 try:
-                    code = self._provider.generate(
+                    generated = self._provider.generate(
                         prompt,
                         metadata={"source_code": unit.source_code or ""},
-                        temperature=temp or self._pick_temperature(attempt),
+                        temperature=temperature_value,
                     )
                 except (
                     Exception
@@ -235,7 +261,27 @@ class LLMTranspilerAgent:
                     raise TranspilationAttemptError(
                         f"LLM provider '{provider_name}' failed: {exc}"
                     ) from exc
-            notes: dict[str, Any] = {"attempt": attempt}
+                task_result = PromptTaskResult(
+                    output_type="code",
+                    output=generated or "",
+                    metadata={
+                        "source": "provider",
+                        "temperature": temperature_value,
+                    },
+                )
+            assert task_result is not None
+            code = task_result.output or ""
+            notes: dict[str, Any] = {
+                "attempt": attempt,
+                "prompt_task": {
+                    "kind": task_spec.kind,
+                    "template": rendered_prompt.template,
+                },
+                "prompt_result": {
+                    "output_type": task_result.output_type,
+                    "source": task_result.metadata.get("source"),
+                },
+            }
             if variant_label:
                 notes["variant"] = variant_label
             if stream_details is not None:
@@ -283,15 +329,17 @@ class LLMTranspilerAgent:
             f"Failed to transpile unit {unit.id} within retry budget"
         )
 
-    def _build_prompt(
+    def _build_prompt_spec(
         self,
         unit: TranspileUnit,
         ctx: IntegrationContext,
         feedback: Optional[str],
         attempt: int,
         previous_code: Optional[str],
-    ) -> str:
-        template_name = "transpile.j2" if feedback is None else "refine.j2"
+    ) -> PromptTaskSpec:
+        kind = (
+            "transpile_initial" if feedback is None else "transpile_refine"
+        )
         previous_snapshot = previous_code or unit.source_code or ""
         fill_context = PromptFillContext(
             unit=unit,
@@ -315,9 +363,10 @@ class LLMTranspilerAgent:
             "previous_code": previous_snapshot,
         }
         base_context.update(payload)
-        return self._prompt_manager.render(
-            template_name,
-            **base_context,
+        return PromptTaskSpec(
+            kind=kind,
+            task_id=str(unit.id),
+            metadata=base_context,
         )
 
     def _pick_temperature(self, idx: int) -> float:

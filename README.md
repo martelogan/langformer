@@ -165,9 +165,20 @@ transpilation:
 | Planner/delegate | Ship a module that registers planner/ delegate classes and include it under `transpilation.plugins.modules`. |
 | Runner integration | Provide a custom runtime adapter + sandbox runner settings under `transpilation.verification.runner`. |
 
+### Prompt Task Layer
+
+Every call into an LLM flows through a lightweight Prompt Task Layer so
+agents can describe **what** they need independently of **how** the prompt is
+executed. A `PromptTaskSpec` (see `langformer/prompting/types.py`) captures the
+task kind, ID, and arbitrary metadata (source code, hints, verifier feedback,
+etc.). Renderers such as `JinjaPromptRenderer`
+(`langformer/prompting/backends/jinja_backend.py`) turn that spec into a
+`RenderedPrompt`, while agents normalize provider responses into a
+`PromptTaskResult`.
+
 ### Prompt templates
 
-Langformer renders all LLM prompts from Jinja2 templates under `langformer/prompting/templates/`:
+Langformer renders all LLM prompts from Jinja2 templates under `langformer/prompting/templates/` via the Prompt Task Layer:
 
 - `transpile.j2` – initial generation prompt (includes common guidelines).
 - `refine.j2` – refinement prompt used when verification fails.

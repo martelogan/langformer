@@ -156,6 +156,11 @@ CLI flags (`langform …`) override YAML keys (e.g., `--llm-provider`, `--model`
 
 ## 6. Prompt System
 
+Prompt interactions are described with `PromptTaskSpec`/`PromptTaskResult`
+(`langformer/prompting/types.py`). Renderers turn specs into prompts (Phase 1:
+`JinjaPromptRenderer`), and agents keep the resulting `PromptTaskResult`
+metadata with their artifacts for auditing.
+
 1. **Templates** live in `langformer/prompting/templates/*.j2` (`transpile`,
    `refine`, `guidelines`, `tests`). Users can add override directories via
    `transpilation.agents.prompt_dir`; `PromptManager` enforces precedence.
