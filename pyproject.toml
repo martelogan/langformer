@@ -7,7 +7,7 @@ name = "langformer"
 version = "0.1.0"
 description = "Agentic, language-agnostic transpilation framework"
 readme = "README.md"
-requires-python = ">=3.8,<3.13"
+requires-python = ">=3.10,<3.13"
 license = {file = "LICENSE"}
 authors = [
     {name = "Logan Martel", email = "logan.martel.dev@gmail.com"},
