@@ -1,16 +1,27 @@
-<p align="center"><img src="assets/langformer.svg" width="320" alt="Langformer logo"></p>
+<p align="center"><img src="assets/langformer.webp" width="320" alt="Langformer logo"></p>
 
 ## `langformer` — Language-Agnostic Transpilation
 
-The `langformer` library is an open-source, agentic transpilation framework for converting source programs into equivalent implementations in a different language or runtime. It draws inspiration from Meta's [KernelAgent](https://github.com/meta-pytorch/KernelAgent) project and generalizes the core concepts to agnostically orchestrate LLM-based refactoring, multi-attempt code generation, and execution-grounded verification for translating source programs into target languages.
+The `langformer` library is an open-source, agentic transpilation framework for converting source programs into equivalent implementations in a different language or runtime. It draws inspiration from Meta's [KernelAgent](https://github.com/meta-pytorch/KernelAgent) project and generalizes the core concepts to agnostically orchestrate LLM-based refactoring, multi-attempt code generation, and verification feedback loops for arbitrary code-to-code transformations.
 
 See [**Quickstart**](#-quickstart) for usage and installation.
 
 ## Architecture at a Glance
 
 <p align="center">
-  <img src="assets/langformer_diagram.svg" width="460" alt="Langformer agent loop diagram">
+  <img src="assets/langformer_diagram.webp" width="460" alt="Langformer agent loop diagram">
 </p>
+
+See [`langformer_spec.md`](langformer_spec.md) for a full technical specification.
+
+### Why Langformer
+
+- **Parallel verification races** – the TranspilerAgent can spawn 1…N workers per unit that race to pass verification, with dedup + stream logging.
+- **Session-aware orchestration** – `RunSession` captures manifests, streams, and artifacts so long-running jobs can pause/resume without losing context.
+- **Centralized Prompt Task Layer** – every LLM call flows through overridable templates + prompt fills, making guidance auditable and easy to customize.
+- **Plugin-first surfaces** – register languages, planners, delegates, oracles, and runtime adapters for project-specific behavior.
+
+### Overview
 
 1. **TranspilationOrchestrator** loads config, imports plugin modules, builds an `IntegrationContext`, and manages RunSession metadata.
 2. **AnalyzerAgent** partitions source code into `TranspileUnit`s and emits `AnalyzerMetadata` (e.g., AST, entrypoints).
@@ -19,8 +30,6 @@ See [**Quickstart**](#-quickstart) for usage and installation.
 5. **TargetIntegrator** writes final files to the layout output path once verification passes.
 6. **RunSession** stores events, manifests, and artifacts so runs can resume or be audited later.
 
-See [`langformer_spec.md`](langformer_spec.md) for a full technical specification.
-
 ---
 
 ## 🚀 Quickstart
@@ -28,6 +37,24 @@ See [`langformer_spec.md`](langformer_spec.md) for a full technical specificatio
 ```bash
 git clone https://github.com/martelogan/langformer.git
 cd langformer
+
+# Recommended to use project virtual env
+# uv venv
+# source .venv/bin/activate
+
+# install dependencies
+uv sync
+
+# run simple example
+# LLM use requires on config in .env
+# e.g. OPENAI_MODEL and OPENAI_API_KEY
+uv run python examples/simple_py2rb_transpiler/run.py --config configs/simple_py2rb.yaml --verify
+```
+
+For dev environment setup
+
+```bash
+# for dev environment setup (e.g. pytest)
 uv pip install -e ".[dev]"
 
 # Recommended lint/test sweep
@@ -38,10 +65,10 @@ uv run pytest
 
 **Environment**
 
-- Python 3.11+
-- `uv` (recommended) or `pip`
+- Python 3.10+
+- [`uv`](https://docs.astral.sh/uv/getting-started/installation/) (recommended) or `pip`
 - Optional: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or custom provider credentials
-- `.env` is auto-loaded; see `.env.example` for hints
+- `.env` is auto-loaded; see [`.env.example`](.env.example) for hints
 
 ### Run an example Langformer transpiler (Python → Ruby)
 

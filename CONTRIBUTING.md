@@ -57,7 +57,7 @@ uv run pytest tests/ -v --cov=langformer
 End‑to‑end example (requires any target toolchains):
 
 ```bash
-uv run python examples/python_to_rust.py --config configs/python_to_rust.yaml --verify
+uv run python examples/simple_py2rb_transpiler/run.py --config configs/simple_py2rb.yaml --verify
 ```
 
 ## Linting and Style

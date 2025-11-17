@@ -1,0 +1,50 @@
+flowchart TB
+    %% Styles
+    classDef orchestrator fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#0f172a
+    classDef agent fill:#fef3c7,stroke:#f97316,stroke-width:2px,color:#1c1917
+    classDef data fill:#dcfce7,stroke:#16a34a,stroke-width:2px
+    classDef runtime fill:#e0f2fe,stroke:#0284c7,stroke-width:2px
+
+    subgraph ControlPlane["🧠 Control Plane"]
+        ORCH["<b>Transpilation Orchestrator</b><br/><span style='font-size:12px'>config · plugins · context</span>"]:::orchestrator
+        RUNSESSION["<b>RunSession</b><br/><span style='font-size:12px'>pause · resume</span>"]:::runtime
+    end
+
+    subgraph Agents["🤝 Agent Loop"]
+        direction TB
+        ANALYZER["<b>AnalyzerAgent</b><br/><span style='font-size:12px'>TranspileUnit</span>"]:::agent
+        TRANSPILER["<b>TranspilerAgent</b><br/><span style='font-size:12px'>CandidatePatchSet</span>"]:::agent
+        subgraph WorkerRace["Parallel workers (1…N)"]
+            direction TB
+            WORKER1["Worker 1<br/><span style='font-size:12px'>candidate attempt</span>"]:::agent
+            WORKERn["Worker N<br/><span style='font-size:12px'>candidate attempt</span>"]:::agent
+        end
+        VERIFIER["<b>VerifierAgent</b><br/><span style='font-size:12px'>VerifyResult</span>"]:::agent
+    end
+
+    subgraph Metadata["📝 Metadata"]
+        direction TB
+        AMETA["AnalyzerMetadata"]:::data
+        TMETA["TranspilerMetadata"]:::data
+        VMETA["VerificationFeedback"]:::data
+    end
+
+    TargetIntegrator["<b>TargetIntegrator</b><br/><span style='font-size:12px'>layout outputs</span>"]:::agent
+
+    ORCH -->|"dispatch units"| ANALYZER
+    ANALYZER -->|"units"| TRANSPILER
+    TRANSPILER -->|"spawn (1…N, race to pass)"| WORKER1
+    TRANSPILER -->|"spawn (1…N, race to pass)"| WORKERn
+    WORKER1 -->|"candidates"| VERIFIER
+    WORKERn -->|"candidates"| VERIFIER
+    VERIFIER -->|"feedback"| TRANSPILER
+    VERIFIER -->|"verified"| TargetIntegrator
+    TargetIntegrator -->|"files"| ORCH
+
+    ORCH -.->|"events"| RUNSESSION
+
+    ANALYZER -.->|"ex. AST"| AMETA
+    AMETA --> TMETA
+    TRANSPILER -.->|"ex. prompt refinements"| TMETA
+    TMETA --> VMETA
+    VERIFIER -.->|"ex. test spec"| VMETA
