@@ -40,6 +40,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "dspy",
     "pytest>=7.0.0",
     "pytest-cov",
     "ruff>=0.6.0",

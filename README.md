@@ -115,6 +115,8 @@ Langformer reads `transpilation.*` settings from the YAML file and lets CLI flag
 | Simple Python→Ruby | `examples/simple_py2rb_transpiler/` | Layout-driven IO, OpenAI defaults, custom verification oracle, deterministic test harness. |
 | Advanced Py→Rb (WIP) | `examples/advanced_wip_py2rb_transpiler/` | Sandbox for richer prompt customizations and translation hints. |
 | KernelAgent Delegate | `examples/kernel_agent_delegate/` | Planner stores router decisions; delegate dispatches to Langformer or KernelAgent |
+| DSPy Py→Rb Agent | `examples/dspy_py2rb_transpiler/` | Standalone DSPy transpiler + optimizer that logs verifier feedback, feeds Ruby test results into DSPy metadata, and emits artifacts for every attempt. |
+| DSPy Prompt Demo | `examples/barebones/transpile_with_dspy/` | Registers Prompt Task Layer renderers plus a DSPy engine and exercises both pathways. |
 
 Run the simple example end-to-end:
 
@@ -201,7 +203,38 @@ task kind, ID, and arbitrary metadata (source code, hints, verifier feedback,
 etc.). Renderers such as `JinjaPromptRenderer`
 (`langformer/prompting/backends/jinja_backend.py`) turn that spec into a
 `RenderedPrompt`, while agents normalize provider responses into a
-`PromptTaskResult`.
+`PromptTaskResult`. Use `register_renderer` / `register_engine`
+(`langformer/prompting/registry.py`) to map kinds to renderers or engines such
+as `BasicDSPyTranspiler`; the default transpiler agent will render prompts and
+call your provider, while DSPy-aware agents can bypass that entirely. See
+`examples/transpile_with_dspy` for the registry walkthrough and
+`examples/dspy_py2rb_transpiler` for a full pipeline that wires a DSPy agent,
+custom oracle, and ArtifactManager-backed optimizer together.
+
+### DSPy Py→Rb Example
+
+Run the full DSPy example end-to-end:
+
+```bash
+uv run python examples/dspy_py2rb_transpiler/run.py \
+  --config configs/dspy_py2rb.yaml \
+  --verify
+```
+
+The `Py2RbDSPyTranspilerAgent` implements the `TranspilerAgent` protocol from
+scratch: it builds `PromptTaskSpec`s, injects API/style metadata, and routes
+the spec through a DSPy program (`examples/dspy_py2rb_transpiler/dspy_components.py`)
+that first summarizes the Python module and then generates Ruby given the
+style guide + verifier requirements. The oracle
+(`examples/dspy_py2rb_transpiler/oracle.py`) executes the Python module, runs
+the generated Ruby through the same cases, and then invokes Minitest suites for
+the target namespace; failures (syntax errors, mismatched outputs, test logs)
+are written to the `ArtifactManager` and provided to the DSPy optimizer. The
+optimizer (`DSPyFeedbackOptimizer`) turns those verifier artifacts into
+structured metadata (`style_guide`, `verifier_requirements`, and
+`verification_feedback`) so the next attempt automatically incorporates the
+oracle guidance. The companion test (`examples/tests/test_dspy_py2rb.py`)
+exercises the full feedback loop.
 
 ### Prompt templates
 
@@ -303,7 +336,7 @@ verification:
 | Language plugins | `langformer.languages.register_language_plugin` | Bundle your own runtime adapters; augment prompts via `register_target_language_hints` / `register_translation_hints`. |
 | Source analysis | `langformer.agents.analyzer.DefaultAnalyzerAgent` | Plugins can override `partition_units`/`parse` to control how the orchestrator slices work. |
 | Context builder | `langformer.orchestration.context_builder.ContextBuilder` | Receives `IntegrationSettings` + `LayoutPlan` objects so you can wire oracles/layout metadata deterministically. |
-| Transpiler agent | `langformer.agents.transpiler.LLMTranspilerAgent` | Swap prompts, retry strategies, or drop in an agent that honors the `TranspilerAgent` protocol. |
+| Transpiler agent | `langformer.agents.transpiler.DefaultTranspilerAgent` (prompt+provider) / `BasicDSPyTranspilerAgent` (DSPy engine) | Swap prompts, retry strategies, or drop in any `TranspilerAgent`-compatible class. |
 | Verification | `langformer.verification` strategies + `langformer.runtime.runner` | Use execution-match, sandbox, or register your own oracle via `langformer.verification.oracles`. |
 | Target integration | `langformer.orchestration.target_integrator.TargetIntegrator` | Handles writing verified code to disk; override if your target needs multi-file composition. |
 | Planners | `langformer.preprocessing.planners.ExecutionPlanner` | Decide whether to run Langformer directly or hand work to a delegate. |

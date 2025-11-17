@@ -2,7 +2,11 @@
 
 from .analyzer import AnalyzerAgent, DefaultAnalyzerAgent
 from .base import LLMConfig
-from .transpiler import LLMTranspilerAgent, TranspilerAgent
+from .transpiler import (
+    BasicDSPyTranspilerAgent,
+    DefaultTranspilerAgent,
+    TranspilerAgent,
+)
 from .verifier import DefaultVerificationAgent, VerifierAgent
 
 __all__ = [
@@ -10,7 +14,8 @@ __all__ = [
     "AnalyzerAgent",
     "DefaultAnalyzerAgent",
     "TranspilerAgent",
-    "LLMTranspilerAgent",
+    "DefaultTranspilerAgent",
+    "BasicDSPyTranspilerAgent",
     "VerifierAgent",
     "DefaultVerificationAgent",
 ]

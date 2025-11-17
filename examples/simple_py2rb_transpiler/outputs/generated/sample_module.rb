@@ -6,7 +6,7 @@ module Report
     
     cleaned = values.compact.map(&:to_i)
     return [0] * min_size if cleaned.length < min_size
-
+    
     base = cleaned.first
     cleaned.map { |value| value - base }
   end
@@ -18,7 +18,7 @@ module Report
     if fmt == "json"
       return JSON.generate({ winners: winners, count: winners.length })
     end
-
+    
     body = winners.empty? ? "n/a" : winners.join(", ")
     "Winners (#{winners.length}): #{body}"
   end

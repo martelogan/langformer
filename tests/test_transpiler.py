@@ -8,7 +8,10 @@ from typing import List
 import pytest
 
 from langformer.agents.base import LLMConfig
-from langformer.agents.transpiler import LLMTranspilerAgent
+from langformer.agents.transpiler import (
+    BasicDSPyTranspilerAgent,
+    DefaultTranspilerAgent,
+)
 from langformer.exceptions import TranspilationAttemptError
 from langformer.languages.python import LightweightPythonLanguagePlugin
 from langformer.llm.providers import LLMProvider
@@ -23,6 +26,13 @@ from langformer.types import (
 PROMPT_DIR = Path("langformer/prompting/templates")
 
 
+def _require_dspy() -> None:
+    pytest.importorskip(
+        "dspy",
+        reason="DSPy is optional; install it to run DSPy transpiler tests.",
+    )
+
+
 def _llm_config_for(provider: LLMProvider) -> LLMConfig:
     manager = PromptManager(PROMPT_DIR)
     return LLMConfig(
@@ -34,8 +44,8 @@ def _llm_config_for(provider: LLMProvider) -> LLMConfig:
 
 def _make_agent(
     provider: LLMProvider, plugin: LightweightPythonLanguagePlugin, **kwargs
-) -> LLMTranspilerAgent:
-    return LLMTranspilerAgent(
+) -> DefaultTranspilerAgent:
+    return DefaultTranspilerAgent(
         plugin,
         plugin,
         llm_config=_llm_config_for(provider),
@@ -232,6 +242,38 @@ def test_transpiler_falls_back_when_stream_fails(tmp_path: Path) -> None:
     assert provider.calls == 1
     assert "stream" in candidate.notes
     assert candidate.notes["stream"]["error"]
+
+
+def _dspy_module_factory(output: str):
+    class _Module:
+        def __call__(self, **kwargs):
+            class _Result:
+                def __init__(self, text: str) -> None:
+                    self.output = text
+
+            return _Result(output)
+
+    return _Module
+
+
+def test_basic_dspy_transpiler_agent(tmp_path: Path) -> None:
+    _require_dspy()
+    plugin = LightweightPythonLanguagePlugin()
+    provider = _DummyProvider()
+    agent = BasicDSPyTranspilerAgent(
+        plugin,
+        plugin,
+        llm_config=_llm_config_for(provider),
+        module_factory=_dspy_module_factory("def dsp():\n    return 1\n"),
+    )
+    verifier = _Verifier(
+        success_keyword="dsp", source_plugin=plugin, target_plugin=plugin
+    )
+
+    candidate = agent.transpile(_unit(), _ctx(tmp_path), verifier=verifier)
+
+    assert "dsp" in next(iter(candidate.files.values()))
+    assert verifier.calls == 1
 
 
 def test_transpiler_skips_duplicate_same_worker(tmp_path: Path) -> None:

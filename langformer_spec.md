@@ -110,7 +110,7 @@ populate `candidate.notes["artifacts"]` and `RunSession` metadata.
 | --- | --- | --- |
 | Language Plugins | `langformer.languages.*` | Parse/execute/compile source and target languages, optionally partition units. |
 | Analyzer Agent | `DefaultAnalyzerAgent` | Partition source into `TranspileUnit`s, attach metadata/AST, write analyzer artifacts. |
-| Transpiler Agent | `LLMTranspilerAgent` | Render prompts (`PromptManager` + `prompt_fills`), call LLM provider, manage retries/variants, optional streaming logs, inline or worker-driven verification hooks. |
+| Transpiler Agent | `DefaultTranspilerAgent` / `BasicDSPyTranspilerAgent` | Default renders prompts + uses the configured provider; DSPy variant runs prompt tasks through `BasicDSPyTranspiler`. Both honor the `TranspilerAgent` protocol so custom agents can be plugged in. |
 | Verifier Agent | `DefaultVerificationAgent` + strategies | Execute configured strategy (exact/structural/execution/custom oracle); return `VerifyResult` with structured feedback + optional generated tests. |
 | Target Integrator | `TargetIntegrator` | Materialize candidate files to layout outputs, optionally merge multi-unit snippets. |
 | Context Builder | `ContextBuilder` | Turn typed `IntegrationSettings` + `LayoutPlan` into `IntegrationContext` (feature_spec, build info, oracle). |
@@ -170,9 +170,19 @@ metadata with their artifacts for auditing.
 3. **Extensibility**: applications register extra payload providers (e.g.,
    translation hints for Ruby) through `prompt_fills.register(...)` or helper
    APIs (`register_target_language_hints`, `register_translation_hints`).
-4. **Discoverability**: every injected instruction flows through the registry
+4. **Backends**: `langformer.prompting.registry` maps `PromptTaskSpec.kind`
+   values to renderers and engines. The default DSPy engine lives in
+   `langformer/prompting/backends/dspy_backend.py`, and
+   `examples/barebones/transpile_with_dspy` shows how to register it.
+5. **Discoverability**: every injected instruction flows through the registry
    so prompts remain auditable; templates never embed hard-coded language
-   strings besides general scaffolding.
+   strings besides general scaffolding. See
+   `examples/dspy_py2rb_transpiler` for a canonical integration that wires a
+   standalone DSPy agent (no inheritance), optimizer, and ruby oracle through
+   the standard `TranspilationOrchestrator` + `ArtifactManager`. That example
+   executes Python + Ruby behavior, runs Minitest suites, records failures as
+   artifacts, and feeds those structured metrics back into the DSPy metadata
+   (`style_guide`, `verifier_requirements`, `verification_feedback`).
 
 ---
 

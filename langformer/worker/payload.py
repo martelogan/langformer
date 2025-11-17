@@ -72,7 +72,7 @@ class WorkerContextSpec:
 
 @dataclass(frozen=True)
 class WorkerAgentSettings:
-    """LLMTranspilerAgent-specific knobs for worker runs."""
+    """DefaultTranspilerAgent-specific knobs for worker runs."""
 
     max_retries: int = 3
     temperature_range: Tuple[float, float] = (0.2, 0.6)

@@ -1,0 +1,35 @@
+transpilation:
+  source_language: python
+  target_language: ruby
+  layout:
+    relative_to: config
+    input:
+      path: examples/dspy_py2rb_transpiler/inputs/report_module.py
+    output:
+      kind: directory
+      path: examples/dspy_py2rb_transpiler/outputs
+      extension: rb
+  feature_spec:
+    ruby_namespace: Report
+    verification_cases: &py2rb_cases
+      - values: [1, 2, 3]
+      - values: [5, 10]
+    ruby_tests: &py2rb_ruby_tests
+      - examples/dspy_py2rb_transpiler/tests/report_module_test.rb
+    style_guide:
+      - "Expose Report.scale_score, Report.scale_scores, and Report.render_report."
+      - "render_report should return a comma-separated string of doubled values."
+  llm:
+    provider: openai
+    model: gpt-4o-mini
+  agents:
+    max_retries: 2
+  components:
+    transpiler_agent: examples.dspy_py2rb_transpiler.agent.Py2RbDSPyTranspilerAgent
+  verification:
+    strategy: custom_oracle
+    oracle:
+      type: dspy_py2rb
+      config:
+        cases: *py2rb_cases
+        ruby_tests: *py2rb_ruby_tests

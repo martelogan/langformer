@@ -1,4 +1,4 @@
-"""LLM Transpiler agent that performs iterative prompt-driven refinement."""
+"""Transpiler agents that support both default and DSPy prompt flows."""
 
 from __future__ import annotations
 
@@ -21,9 +21,14 @@ from langformer.agents.base import LLMConfig
 from langformer.exceptions import TranspilationAttemptError
 from langformer.languages.base import LanguagePlugin
 from langformer.prompting.backends.base import PromptRenderer
+from langformer.prompting.backends.dspy_backend import BasicDSPyTranspiler
 from langformer.prompting.backends.jinja_backend import JinjaPromptRenderer
 from langformer.prompting.fills import PromptFillContext, prompt_fills
-from langformer.prompting.types import PromptTaskResult, PromptTaskSpec
+from langformer.prompting.registry import get_renderer
+from langformer.prompting.types import (
+    PromptTaskResult,
+    PromptTaskSpec,
+)
 from langformer.runtime.parallel import ParallelExplorer
 from langformer.types import (
     CandidatePatchSet,
@@ -59,8 +64,8 @@ class TranspilerAgent(Protocol):
         ...
 
 
-class LLMTranspilerAgent:
-    """Transpiler that uses prompt templates, providers, and LLM iterations."""
+class DefaultTranspilerAgent:
+    """Transpiler that renders prompts and calls the configured provider."""
 
     def __init__(
         self,
@@ -102,7 +107,7 @@ class LLMTranspilerAgent:
             )
         self._logger = logging.getLogger(__name__)
         self._logger.info(
-            "LLMTranspilerAgent using provider %s", provider_name
+            "DefaultTranspilerAgent using provider %s", provider_name
         )
         if provider_name.lower().startswith("echoprovider"):
             self._logger.warning(
@@ -198,12 +203,18 @@ class LLMTranspilerAgent:
                 raise TranspilationAttemptError(
                     "Transpiler canceled by orchestrator"
                 )
-            task_spec = self._build_prompt_spec(
-                unit, ctx, feedback, attempt, previous_code
+            task_spec = build_prompt_task_spec(
+                self._source_plugin,
+                self._target_plugin,
+                unit,
+                ctx,
+                feedback,
+                attempt,
+                previous_code,
             )
-            rendered_prompt = self._prompt_renderer.render(task_spec)
+            renderer = get_renderer(task_spec.kind) or self._prompt_renderer
+            rendered_prompt = renderer.render(task_spec)
             prompt = rendered_prompt.message.content
-            stream_details: Optional[dict[str, Any]] = None
             adapter_instance: Optional[Any] = None
             if event_factory is not None:
                 try:
@@ -214,6 +225,7 @@ class LLMTranspilerAgent:
                     self._logger.warning(
                         "Failed to initialize event adapter: %s", exc
                     )
+            stream_details: Optional[dict[str, Any]] = None
             if adapter_instance is not None:
                 try:
                     stream_details = adapter_instance.stream(
@@ -230,10 +242,11 @@ class LLMTranspilerAgent:
                         },
                     )
                 except Exception as exc:  # pragma: no cover
-                    self._logger.warning("Event streaming failed: %s", exc)
+                    self._logger.warning(
+                        "Event streaming failed: %s", exc
+                    )
                     stream_details = {"error": str(exc)}
-            task_result: PromptTaskResult | None = None
-            if stream_details is not None:
+            if stream_details is not None and stream_details.get("output_text"):
                 task_result = PromptTaskResult(
                     output_type="code",
                     output=stream_details.get("output_text", "") or "",
@@ -242,7 +255,7 @@ class LLMTranspilerAgent:
                         "response_id": stream_details.get("response_id"),
                     },
                 )
-            if task_result is None or not task_result.output:
+            else:
                 temperature_value = temp or self._pick_temperature(attempt)
                 try:
                     generated = self._provider.generate(
@@ -250,9 +263,7 @@ class LLMTranspilerAgent:
                         metadata={"source_code": unit.source_code or ""},
                         temperature=temperature_value,
                     )
-                except (
-                    Exception
-                ) as exc:  # pragma: no cover - surface provider failures
+                except Exception as exc:  # pragma: no cover
                     provider_name = getattr(
                         getattr(self._provider, "__class__", None),
                         "__name__",
@@ -269,19 +280,18 @@ class LLMTranspilerAgent:
                         "temperature": temperature_value,
                     },
                 )
-            assert task_result is not None
             code = task_result.output or ""
             notes: dict[str, Any] = {
                 "attempt": attempt,
                 "prompt_task": {
                     "kind": task_spec.kind,
-                    "template": rendered_prompt.template,
                 },
                 "prompt_result": {
                     "output_type": task_result.output_type,
                     "source": task_result.metadata.get("source"),
                 },
             }
+            notes["prompt_task"]["template"] = rendered_prompt.template
             if variant_label:
                 notes["variant"] = variant_label
             if stream_details is not None:
@@ -329,46 +339,6 @@ class LLMTranspilerAgent:
             f"Failed to transpile unit {unit.id} within retry budget"
         )
 
-    def _build_prompt_spec(
-        self,
-        unit: TranspileUnit,
-        ctx: IntegrationContext,
-        feedback: Optional[str],
-        attempt: int,
-        previous_code: Optional[str],
-    ) -> PromptTaskSpec:
-        kind = (
-            "transpile_initial" if feedback is None else "transpile_refine"
-        )
-        previous_snapshot = previous_code or unit.source_code or ""
-        fill_context = PromptFillContext(
-            unit=unit,
-            integration_context=ctx,
-            attempt=attempt,
-            feedback=feedback,
-            previous_code=previous_snapshot,
-            source_language=self._source_plugin.name,
-            target_language=self._target_plugin.name,
-            source_plugin=self._source_plugin,
-            target_plugin=self._target_plugin,
-        )
-        payload = prompt_fills.build_payload(fill_context)
-        base_context = {
-            "source_language": self._source_plugin.name,
-            "target_language": self._target_plugin.name,
-            "unit_kind": unit.kind,
-            "source_code": unit.source_code or "",
-            "feedback": feedback or "",
-            "attempt": attempt,
-            "previous_code": previous_snapshot,
-        }
-        base_context.update(payload)
-        return PromptTaskSpec(
-            kind=kind,
-            task_id=str(unit.id),
-            metadata=base_context,
-        )
-
     def _pick_temperature(self, idx: int) -> float:
         low, high = self._temperature_range
         if self._max_retries <= 1:
@@ -376,3 +346,266 @@ class LLMTranspilerAgent:
         span = high - low
         fraction = min(1.0, idx / max(1, self._max_retries - 1))
         return low + span * fraction
+
+
+class BasicDSPyTranspilerAgent:
+    """Transpiler agent that delegates generation to a DSPy engine."""
+
+    def __init__(
+        self,
+        source_plugin: LanguagePlugin,
+        target_plugin: LanguagePlugin,
+        *,
+        llm_config: LLMConfig,
+        module_factory: Optional[Callable[[], Any]] = None,
+        max_retries: int = 1,
+        event_adapter_factory: Optional[EventAdapterFactory] = None,
+        prompt_renderer: PromptRenderer | None = None,
+        prompt_template_map: Optional[Mapping[str, str]] = None,
+    ) -> None:
+        self._source_plugin = source_plugin
+        self._target_plugin = target_plugin
+        self._llm_config = llm_config
+        self._artifact_manager = llm_config.artifact_manager
+        default_template_map = {
+            "transpile_initial": "transpile.j2",
+            "transpile_refine": "refine.j2",
+        }
+        if prompt_template_map:
+            default_template_map.update(prompt_template_map)
+        self._prompt_manager = llm_config.prompt_manager
+        self._prompt_renderer = prompt_renderer or JinjaPromptRenderer(
+            self._prompt_manager, template_map=default_template_map
+        )
+        self._engine = BasicDSPyTranspiler(module_factory=module_factory)
+        self._max_retries = max(1, max_retries)
+        self._explorer = ParallelExplorer()
+        self._event_factory = event_adapter_factory
+        self._logger = logging.getLogger(__name__)
+        self._logger.info(
+            "BasicDSPyTranspilerAgent initialized with engine %s",
+            type(self._engine).__name__,
+        )
+
+    def transpile(
+        self,
+        unit: TranspileUnit,
+        ctx: IntegrationContext,
+        verifier: "VerifierAgent | None" = None,
+        *,
+        event_factory: Optional[EventAdapterFactory] = None,
+        variant_label: Optional[str] = None,
+        dedup_handler: Optional[DedupHandler] = None,
+        cancel_event: Optional[Any] = None,
+    ) -> CandidatePatchSet:
+        """Transpile using the DSPy engine, retrying when verification fails."""
+
+        if self._max_retries <= 1 or verifier is None:
+            return self._sequential_attempts(
+                unit,
+                ctx,
+                verifier,
+                event_factory=event_factory or self._event_factory,
+                variant_label=variant_label,
+                dedup_handler=dedup_handler,
+                cancel_event=cancel_event,
+            )
+
+        attempt_funcs = [
+            lambda: self._sequential_attempts(
+                unit,
+                ctx,
+                verifier,
+                event_factory=event_factory or self._event_factory,
+                variant_label=variant_label,
+                dedup_handler=dedup_handler,
+                cancel_event=cancel_event,
+            )
+            for _ in range(self._max_retries)
+        ]
+        candidate = self._explorer.explore(attempt_funcs)
+        if candidate is None:
+            raise TranspilationAttemptError(
+                f"DSPy engine failed for unit {unit.id}"
+            )
+        return candidate
+
+    def _sequential_attempts(
+        self,
+        unit: TranspileUnit,
+        ctx: IntegrationContext,
+        verifier: "VerifierAgent | None",
+        *,
+        event_factory: Optional[EventAdapterFactory],
+        variant_label: Optional[str],
+        dedup_handler: Optional[DedupHandler],
+        cancel_event: Optional[Any],
+    ) -> CandidatePatchSet:
+        target_path = ctx.layout.target_path(unit.id)
+        feedback: Optional[str] = None
+        previous_code: Optional[str] = None
+        for attempt in range(1, self._max_retries + 1):
+            if (
+                cancel_event is not None
+                and getattr(cancel_event, "is_set", lambda: False)()
+            ):
+                raise TranspilationAttemptError(
+                    "Transpiler canceled by orchestrator"
+                )
+            task_spec = self._prepare_task_spec(
+                unit,
+                ctx,
+                feedback,
+                attempt,
+                previous_code,
+            )
+            result = self._engine.run(task_spec)
+            code = result.output or ""
+            if not code:
+                raise TranspilationAttemptError(
+                    f"DSPy engine returned no output for unit {unit.id}"
+                )
+            notes: dict[str, Any] = {
+                "attempt": attempt,
+                "prompt_task": {
+                    "kind": task_spec.kind,
+                    "engine": type(self._engine).__name__,
+                },
+                "prompt_result": {
+                    "output_type": result.output_type,
+                    "source": result.metadata.get("source"),
+                },
+            }
+            if variant_label:
+                notes["variant"] = variant_label
+            dedup_info = None
+            if dedup_handler is not None:
+                try:
+                    dedup_info = dedup_handler(code, attempt, variant_label)
+                except Exception as exc:  # pragma: no cover - defensive
+                    dedup_info = {"status": "error", "error": str(exc)}
+                if dedup_info:
+                    notes["dedup"] = dedup_info
+                    status = dedup_info.get("status")
+                    if status == "duplicate_same_worker":
+                        feedback = json.dumps(
+                            {
+                                "reason": "duplicate_same_worker",
+                                "dedup": dedup_info,
+                            },
+                        )
+                        continue
+                    if status == "duplicate_cross_worker":
+                        raise TranspilationAttemptError(
+                            "Duplicate candidate seen by another worker"
+                        )
+            candidate = CandidatePatchSet(
+                files={target_path: code}, notes=notes
+            )
+            previous_code = code
+            if verifier is None:
+                return candidate
+            verifier_result = verifier.verify(unit, candidate, ctx)
+            verification_note = verifier_result.feedback.to_dict()
+            candidate.notes["verification"] = verification_note
+            self._after_verification(unit, attempt, verification_note)
+            if verifier_result.passed:
+                return candidate
+            feedback = json.dumps(verification_note)
+        raise TranspilationAttemptError(
+            f"DSPy engine failed to transpile unit {unit.id} within retry budget"
+        )
+
+    def _prepare_task_spec(
+        self,
+        unit: TranspileUnit,
+        ctx: IntegrationContext,
+        feedback: Optional[str],
+        attempt: int,
+        previous_code: Optional[str],
+    ) -> PromptTaskSpec:
+        spec = build_prompt_task_spec(
+            self._source_plugin,
+            self._target_plugin,
+            unit,
+            ctx,
+            feedback,
+            attempt,
+            previous_code,
+        )
+        overrides = self._metadata_overrides(unit, attempt, ctx)
+        if overrides:
+            spec.metadata = _merge_metadata(spec.metadata, overrides)
+        return spec
+
+    def _metadata_overrides(
+        self,
+        unit: TranspileUnit,
+        attempt: int,
+        ctx: IntegrationContext,
+    ) -> Dict[str, Any]:
+        return {}
+
+    def _after_verification(
+        self,
+        unit: TranspileUnit,
+        attempt: int,
+        verification_note: Dict[str, Any],
+    ) -> None:
+        return None
+
+
+def build_prompt_task_spec(
+    source_plugin: LanguagePlugin,
+    target_plugin: LanguagePlugin,
+    unit: TranspileUnit,
+    ctx: IntegrationContext,
+    feedback: Optional[str],
+    attempt: int,
+    previous_code: Optional[str],
+) -> PromptTaskSpec:
+    kind = "transpile_initial" if feedback is None else "transpile_refine"
+    previous_snapshot = previous_code or unit.source_code or ""
+    fill_context = PromptFillContext(
+        unit=unit,
+        integration_context=ctx,
+        attempt=attempt,
+        feedback=feedback,
+        previous_code=previous_snapshot,
+        source_language=source_plugin.name,
+        target_language=target_plugin.name,
+        source_plugin=source_plugin,
+        target_plugin=target_plugin,
+    )
+    payload = prompt_fills.build_payload(fill_context)
+    base_context = {
+        "source_language": source_plugin.name,
+        "target_language": target_plugin.name,
+        "unit_kind": unit.kind,
+        "source_code": unit.source_code or "",
+        "feedback": feedback or "",
+        "attempt": attempt,
+        "previous_code": previous_snapshot,
+    }
+    base_context.update(payload)
+    return PromptTaskSpec(
+        kind=kind,
+        task_id=str(unit.id),
+        metadata=base_context,
+    )
+
+
+def _merge_metadata(
+    base: Dict[str, Any], overrides: Dict[str, Any]
+) -> Dict[str, Any]:
+    for key, value in overrides.items():
+        if (
+            isinstance(value, dict)
+            and isinstance(base.get(key), dict)
+        ):
+            base[key] = _merge_metadata(
+                base.get(key, {}).copy(), value
+            )
+        else:
+            base[key] = value
+    return base

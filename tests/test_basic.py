@@ -20,7 +20,7 @@ import pytest
 import langformer
 
 from langformer import TranspilationOrchestrator
-from langformer.agents.transpiler import LLMTranspilerAgent
+from langformer.agents.transpiler import DefaultTranspilerAgent
 from langformer.languages.python import LightweightPythonLanguagePlugin
 from langformer.verification.strategies import (
     ExactMatchStrategy,
@@ -110,7 +110,7 @@ def test_orchestrator_uses_llm_agent_by_default():
         verification_strategy=ExactMatchStrategy(),
     )
 
-    assert isinstance(orchestrator.transpiler_agent, LLMTranspilerAgent)
+    assert isinstance(orchestrator.transpiler_agent, DefaultTranspilerAgent)
 
 
 def test_orchestrator_worker_manager(tmp_path: Path):

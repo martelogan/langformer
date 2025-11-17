@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 from langformer.agents.base import LLMConfig
-from langformer.agents.transpiler import LLMTranspilerAgent
+from langformer.agents.transpiler import DefaultTranspilerAgent
 from langformer.agents.verifier import DefaultVerificationAgent
 from langformer.exceptions import TranspilationAttemptError
 from langformer.languages import LANGUAGE_PLUGINS
@@ -38,7 +38,7 @@ def run_worker(
         prompt_manager=prompt_manager,
         prompt_paths=resolved_paths,
     )
-    agent = LLMTranspilerAgent(
+    agent = DefaultTranspilerAgent(
         source_plugin,
         target_plugin,
         llm_config=llm_config,

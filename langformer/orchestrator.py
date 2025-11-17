@@ -18,7 +18,10 @@ from dotenv import load_dotenv
 
 from langformer.agents.analyzer import DefaultAnalyzerAgent
 from langformer.agents.base import LLMConfig
-from langformer.agents.transpiler import LLMTranspilerAgent, TranspilerAgent
+from langformer.agents.transpiler import (
+    DefaultTranspilerAgent,
+    TranspilerAgent,
+)
 from langformer.agents.verifier import DefaultVerificationAgent, VerifierAgent
 from langformer.artifacts import ArtifactManager
 from langformer.configuration import (
@@ -755,7 +758,7 @@ class TranspilationOrchestrator:
         llm_config: LLMConfig,
         temp_range,
     ) -> TranspilerAgent:
-        ctor = LLMTranspilerAgent
+        ctor = DefaultTranspilerAgent
         if class_path:
             ctor = self._import_symbol(class_path)
         return ctor(  # type: ignore[call-arg]

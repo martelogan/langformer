@@ -8,7 +8,7 @@ from typing import Any
 from examples.simple_py2rb_transpiler.outputs.test_only import (
     stub_translation,
 )
-from langformer.agents.transpiler import LLMTranspilerAgent
+from langformer.agents.transpiler import DefaultTranspilerAgent
 from langformer.types import CandidatePatchSet
 
 STUB_RUBY_IMPLEMENTATION = (
@@ -28,4 +28,4 @@ def install_stubbed_transpiler(monkeypatch: Any) -> None:
             candidate.notes["verification"] = result.feedback.to_dict()
         return candidate
 
-    monkeypatch.setattr(LLMTranspilerAgent, "transpile", _stubbed_transpile)
+    monkeypatch.setattr(DefaultTranspilerAgent, "transpile", _stubbed_transpile)
